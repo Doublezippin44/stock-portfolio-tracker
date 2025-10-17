@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        <h1 class="text-3xl font-bold text-center text-white mb-4">My Portfolio</h1>
+        <div id="total-value" class="text-xl text-center text-gray-400 mb-8">Total Value: $0.00</div>
+
+        <div class="w-full max-w-md mx-auto mb-12">
+            <canvas id="myChart"></canvas>
+        </div>
+        
+        <div class="bg-gray-800 shadow-md rounded-lg p-6 mb-12">
+            <h2 class="text-2xl font-semibold text-white text-center mb-4">Record a New Transaction</h2>
+            <form id="transaction-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="stock_symbol" class="block text-sm font-medium text-gray-300">Stock Symbol</label>
+                    <input type="text" id="stock_symbol" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="transaction_type" class="block text-sm font-medium text-gray-300">Type</label>
+                    <select id="transaction_type" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option>BUY</option>
+                        <option>SELL</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="quantity" class="block text-sm font-medium text-gray-300">Quantity</label>
+                    <input type="number" step="0.0001" id="quantity" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="price_per_share" class="block text-sm font-medium text-gray-300">Price Per Share</label>
+                    <input type="number" step="0.01" id="price_per_share" required class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-lg transition duration-200">Add Transaction</button>
+                </div>
+            </form>
+             <p id="form-message" class="text-center mt-4"></p>
+        </div>
+
+        <div class="bg-gray-800 shadow-md rounded-lg overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-700">
+                    <tr>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Stock Symbol</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Quantity</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Current Price</th>
+                        <th class="p-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">Market Value</th>
+                    </tr>
+                </thead>
+                <tbody id="portfolio-body">
+                </tbody>
+            </table>
+        </div>
+        <div id="error-message" class="text-center text-red-500 mt-4"></div>
+    </div>
+
+    <script>
+        const userId = localStorage.getItem('user_id');
+        if (!userId) {
+            window.location.href = 'login.html';
+        } else {
+            const portfolioApiUrl = `http://127.0.0.1:5000/portfolio/${userId}`;
+            const transactionApiUrl = 'http://127.0.0.1:5000/transactions';
+            
+            const portfolioBody = document.getElementById('portfolio-body');
+            const totalValueEl = document.getElementById('total-value');
+            const errorMessage = document.getElementById('error-message');
+
+            function fetchPortfolio() {
+                fetch(portfolioApiUrl)
+                    .then(response => response.ok ? response.json() : Promise.reject('Network error'))
+                    .then(portfolio => {
+                        const formattedTotal = portfolio.total_portfolio_value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                        totalValueEl.textContent = `Total Value: ${formattedTotal}`;
+                        portfolioBody.innerHTML = '';
+
+                        const chartLabels = [];
+                        const chartData = [];
+
+                        portfolio.holdings.forEach(stock => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td class="p-4 border-b border-gray-700 font-medium">${stock.stock_symbol}</td>
+                                <td class="p-4 border-b border-gray-700">${stock.quantity}</td>
+                                <td class="p-4 border-b border-gray-700">${stock.current_price.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                                <td class="p-4 border-b border-gray-700">${stock.market_value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                            `;
+                            portfolioBody.appendChild(row);
+
+                            chartLabels.push(stock.stock_symbol);
+                            chartData.push(stock.market_value);
+                        });
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, {
+                            type: 'doughnut', data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'], hoverOffset: 4 }] },
+                            options: { responsive: true, plugins: { legend: { labels: { color: '#e0e0e0' } }, title: { display: true, text: 'Portfolio Distribution', color: '#ffffff' } } }
+                        });
+                    })
+                    .catch(error => {
+                        errorMessage.textContent = 'Could not load portfolio data. Is the backend server running?';
+                        console.error('Error fetching portfolio:', error);
+                    });
+            }
+
+            // Initial load of the portfolio
+            fetchPortfolio();
+
+            // NEW: JavaScript for the transaction form
+            const transactionForm = document.getElementById('transaction-form');
+            const formMessage = document.getElementById('form-message');
+
+            transactionForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const now = new Date();
+                const transactionDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+                const transactionData = {
+                    user_id: parseInt(userId),
+                    stock_symbol: document.getElementById('stock_symbol').value.toUpperCase(),
+                    transaction_type: document.getElementById('transaction_type').value,
+                    quantity: parseFloat(document.getElementById('quantity').value),
+                    price_per_share: parseFloat(document.getElementById('price_per_share').value),
+                    transaction_date: transactionDate
+                };
+
+                fetch(transactionApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transactionData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        formMessage.textContent = 'Transaction successful!';
+                        formMessage.style.color = 'lightgreen';
+                        transactionForm.reset();
+                        // Reload the page to see the updated portfolio
+                        setTimeout(() => window.location.reload(), 1000); 
+                    } else {
+                        formMessage.textContent = data.error || 'Failed to add transaction.';
+                        formMessage.style.color = 'red';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    formMessage.textContent = 'An error occurred.';
+                    formMessage.style.color = 'red';
+                });
+            });
+        }
+    </script>
+
+</body>
+</html>
