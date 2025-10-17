@@ -1,6 +1,6 @@
 # Stock Portfolio Tracker
 
-A full-stack web application that allows users to register, log in, and track the real-time value of their stock portfolio. The application features a Python/Flask backend, a MySQL database, and a dynamic frontend built with HTML, CSS, and JavaScript.
+This is a prototype of a full-stack web application that allows users to register, log in, and track the real-time value of their stock portfolio. The application features a Python/Flask backend, a MySQL database, and a dynamic frontend built with HTML, CSS, and JavaScript.
 
 ## Features
 -   User Registration and Login system with password hashing.
